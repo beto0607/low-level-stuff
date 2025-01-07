@@ -10,6 +10,7 @@ const host = .{ 127, 0, 0, 1 };
 const port: u16 = 3001;
 
 var client: net.Server.Connection = undefined;
+var server: net.Server = undefined;
 
 pub fn main() !void {
     var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
@@ -17,7 +18,8 @@ pub fn main() !void {
     const gpa = gpa_alloc.allocator();
 
     const address = net.Address.initIp4(host, port);
-    var server = try address.listen(.{});
+    server = try address.listen(.{});
+    defer server.deinit();
 
     const act = os.linux.Sigaction{
         .handler = .{ .handler = sigintHandler },
@@ -42,11 +44,13 @@ pub fn main() !void {
 
     print("Method: {s}\n", .{request.method});
     print("Host: {s}\n", .{request.headers.get("Host") orelse "<none>"});
-    // print("Body: {s}", .{request.body});
+    print("Body: {s}\n", .{request.body});
 }
 
 fn sigintHandler(_: c_int) callconv(.C) void {
     client.stream.close();
+    server.deinit();
+    print("Sign handler\n", .{});
     process.exit(1);
 }
 
@@ -54,6 +58,7 @@ const HttpRequest = struct {
     method: []const u8,
     path: []const u8,
     http_version: []const u8,
+    content_length: u64,
     body: []const u8,
     // query: []const u8,
     headers: std.StringHashMap([]const u8),
@@ -65,6 +70,7 @@ const HttpRequest = struct {
             .method = undefined,
             .http_version = undefined,
             .path = undefined,
+            .content_length = 0,
             .body = undefined,
             .headers = std.StringHashMap([]const u8).init(gpa),
         };
@@ -74,7 +80,7 @@ const HttpRequest = struct {
         gpa.free(self.http_version);
         gpa.free(self.path);
         gpa.free(self.method);
-        // gpa.free(self.body);
+        gpa.free(self.body);
         var headers_iterator = self.headers.iterator();
         while (headers_iterator.next()) |entry| {
             gpa.free(entry.key_ptr.*);
@@ -100,30 +106,13 @@ fn ReadRequest(gpa: mem.Allocator, request: *HttpRequest, reader: net.Stream.Rea
     parseStartLine(gpa, request, http_start_line.?) catch return HttpRequestError.InvalidRequest;
 
     parseHeaders(gpa, request, reader) catch return HttpRequestError.InvalidRequest;
-    // parseBody(gpa, request, reader) catch return HttpRequestError.InvalidRequest;
+    parseBody(gpa, request, reader) catch return HttpRequestError.InvalidRequest;
 }
 
 fn parseBody(gpa: mem.Allocator, request: *HttpRequest, reader: net.Stream.Reader) !void {
-    var body = std.ArrayList(u8).init(gpa);
-    defer body.deinit();
-    while (true) {
-        const byte = reader.readByte() catch break;
-        print("{c}", .{byte});
-
-        try body.append(byte);
-        //     const msg = try reader.readUntilDelimiterOrEofAlloc(gpa, '\n', 65536) orelse break;
-        //     defer gpa.free(msg);
-        //     try body.appendSlice(msg);
-    }
-    // const contentLength = request.headers.get("Content-Length") orelse "65536";
-    // print("{s}", .{contentLength});
-    // const number_of_bytes = 65536; //try std.fmt.parseInt(u32, contentLength, 10);
-    // try reader.readAllArrayList(&body, number_of_bytes);
-    // const msg = try reader.readAllAlloc(gpa, numberOfBytes);
-    request.body = try body.toOwnedSlice();
-    // try body.appendSlice(msg);
-    //
-    // request.body = try body.toOwnedSlice();
+    const bodyArray: []u8 = try gpa.alloc(u8, request.content_length);
+    _ = try reader.read(bodyArray);
+    request.body = bodyArray;
 }
 
 fn parseHeaders(gpa: mem.Allocator, request: *HttpRequest, reader: net.Stream.Reader) !void {
@@ -139,11 +128,14 @@ fn parseHeaders(gpa: mem.Allocator, request: *HttpRequest, reader: net.Stream.Re
         const key = split_iterator.next() orelse return HttpRequestError.InvalidRequest;
         const dupped_key = try dupeChunk(gpa, key);
         const value = split_iterator.rest();
-        const dupped_value = try dupeChunk(gpa, value[1..value.len]);
+        const dupped_value = try dupeChunk(gpa, value[1 .. value.len - 1]);
         headers.put(dupped_key, dupped_value) catch return HttpRequestError.InvalidRequest;
     }
 
     request.headers = headers;
+
+    const contentLength = request.headers.get("Content-Length") orelse "0";
+    request.content_length = try std.fmt.parseInt(u64, contentLength, 10);
 }
 
 fn parseStartLine(gpa: mem.Allocator, request: *HttpRequest, start_line: []const u8) !void {
