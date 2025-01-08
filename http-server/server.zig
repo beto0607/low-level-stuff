@@ -16,11 +16,9 @@ var server: net.Server = undefined;
 pub fn main() !void {
     var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
     defer assert(gpa_alloc.deinit() == .ok);
-    const gpa = gpa_alloc.allocator();
-
-    const address = net.Address.initIp4(host, port);
-    server = try address.listen(.{});
-    defer server.deinit();
+    var arena = std.heap.ArenaAllocator.init(gpa_alloc.allocator());
+    defer arena.deinit();
+    const allocator = arena.allocator();
 
     const act = os.linux.Sigaction{
         .handler = .{ .handler = sigintHandler },
@@ -32,24 +30,26 @@ pub fn main() !void {
         return error.SignalHandlerError;
     }
 
+    const address = net.Address.initIp4(host, port);
+    server = try address.listen(.{});
+    defer server.deinit();
+
     print("Server listenning port: {}\n", .{server.listen_address.getPort()});
 
     client = try server.accept();
     defer client.stream.close();
     const client_reader = client.stream.reader();
 
-    var request = http_request.HttpRequest.init(gpa);
-    defer request.free(gpa);
+    var request = http_request.HttpRequest.init(allocator);
 
-    try http_request.ReadRequest(gpa, &request, client_reader);
+    try http_request.ReadRequest(allocator, &request, client_reader);
 
     print("Method: {s}\n", .{request.method});
     print("Host: {s}\n", .{request.headers.get("Host") orelse "<none>"});
     print("Body: {s}\n", .{request.body});
 
     const client_writer = client.stream.writer();
-    var response = http_response.HttpResponse.init(gpa);
-    defer response.free(gpa);
+    var response = http_response.HttpResponse.init(allocator);
 
     response.status_code = 204;
     try response.headers.put("Server", "My cool server");
