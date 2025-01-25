@@ -13,14 +13,15 @@ pub const HttpRequest = struct {
     headers: std.StringHashMap([]const u8),
     const Self = @This();
 
-    pub fn init(allocator: mem.Allocator) Self {
+    pub fn init() Self {
         return .{
             .method = undefined,
             .http_version = undefined,
             .path = undefined,
             .content_length = 0,
             .body = undefined,
-            .headers = std.StringHashMap([]const u8).init(allocator),
+            .headers = undefined,
+            // .headers = std.StringHashMap([]const u8).init(allocator),
         };
     }
 };
@@ -32,7 +33,12 @@ pub const HttpRequestError = error{
 };
 
 pub fn ReadRequest(allocator: mem.Allocator, request: *HttpRequest, reader: net.Stream.Reader) (HttpRequestError)!void {
-    const http_start_line = reader.readUntilDelimiterOrEofAlloc(allocator, '\n', 65536) catch return HttpRequestError.ErrorWhileReadingStream;
+    print("TEST", .{});
+    const http_start_line = reader.readUntilDelimiterOrEofAlloc(
+        allocator,
+        '\n',
+        120,
+    ) catch return HttpRequestError.ErrorWhileReadingStream;
     if (http_start_line == null) {
         return HttpRequestError.EmptyStartLine;
     }
@@ -54,8 +60,11 @@ fn parseBody(allocator: mem.Allocator, request: *HttpRequest, reader: net.Stream
 fn parseHeaders(allocator: mem.Allocator, request: *HttpRequest, reader: net.Stream.Reader) !void {
     var headers = std.StringHashMap([]const u8).init(allocator);
 
+    const buffer = try allocator.alloc(u8, 65536);
+    defer allocator.free(buffer);
     while (true) {
-        const msg = try reader.readUntilDelimiterOrEofAlloc(allocator, '\n', 65536) orelse break;
+        const msg = try reader.readUntilDelimiterOrEof(buffer, '\n') orelse break;
+        // const msg = try reader.readUntilDelimiterOrEofAlloc(allocator, '\n', 65536) orelse break;
         defer allocator.free(msg);
         if (msg[0] == '\r') { // end of headers
             break;

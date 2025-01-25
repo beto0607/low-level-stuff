@@ -1,69 +1,99 @@
 const std = @import("std");
 const http_request = @import("request.zig");
 const http_response = @import("response.zig");
+const mem = std.mem;
 const net = std.net;
-const os = std.os;
-const process = std.process;
 const print = std.debug.print;
 const assert = std.debug.assert;
 
-const host = .{ 127, 0, 0, 1 };
-const port: u16 = 3001;
+const OnStartListening = ?*const fn () void;
+const OnStopListening = ?*const fn () void;
+const OnConnectionReceived = ?*const fn () void;
+const OnRequest = ?*const fn (response: *http_response.HttpResponse, request: *const http_request.HttpRequest) anyerror!void;
 
-var client: net.Server.Connection = undefined;
-var server: net.Server = undefined;
+pub const HttpServer = struct {
+    allocator: mem.Allocator,
+    client_connection: net.Server.Connection,
+    host: [4]u8,
+    port: u16,
+    server: net.Server,
 
-pub fn main() !void {
-    var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
-    defer assert(gpa_alloc.deinit() == .ok);
-    var arena = std.heap.ArenaAllocator.init(gpa_alloc.allocator());
-    defer arena.deinit();
-    const allocator = arena.allocator();
+    on_start_listening: OnStartListening,
+    on_stop_listening: OnStartListening,
+    on_connection_received: OnConnectionReceived,
+    on_request: OnRequest,
 
-    const act = os.linux.Sigaction{
-        .handler = .{ .handler = sigintHandler },
-        .mask = os.linux.empty_sigset,
-        .flags = 0,
-    };
+    const Self = @This();
 
-    if (os.linux.sigaction(os.linux.SIG.INT, &act, null) != 0) {
-        return error.SignalHandlerError;
+    pub fn init(allocator: mem.Allocator, host: [4]u8, port: u16) !Self {
+        return .{
+            .allocator = allocator,
+            .client_connection = undefined,
+            .host = host,
+            .on_start_listening = undefined,
+            .on_stop_listening = undefined,
+            .on_connection_received = undefined,
+            .port = port,
+            .server = undefined,
+            .on_request = undefined,
+        };
     }
 
-    const address = net.Address.initIp4(host, port);
-    server = try address.listen(.{});
-    defer server.deinit();
+    pub fn deinit(self: *Self) void {
+        self.server.deinit();
+    }
 
-    print("Server listenning port: {}\n", .{server.listen_address.getPort()});
+    pub fn start(self: *Self) !void {
+        const address = net.Address.initIp4(self.host, self.port);
+        self.server = try address.listen(.{ .reuse_address = true });
 
-    client = try server.accept();
-    defer client.stream.close();
-    const client_reader = client.stream.reader();
+        if (self.on_start_listening) |callback| {
+            callback();
+        }
 
-    var request = http_request.HttpRequest.init(allocator);
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit();
 
-    try http_request.ReadRequest(allocator, &request, client_reader);
+        var number_of_requests: u8 = 0;
+        while (number_of_requests < 1) {
+            number_of_requests += 1;
+            const allocator = arena.allocator();
 
-    print("Method: {s}\n", .{request.method});
-    print("Host: {s}\n", .{request.headers.get("Host") orelse "<none>"});
-    print("Body: {s}\n", .{request.body});
+            self.client_connection = try self.server.accept();
+            defer self.client_connection.stream.close();
 
-    const client_writer = client.stream.writer();
-    var response = http_response.HttpResponse.init(allocator);
+            if (self.on_connection_received) |callback| {
+                callback();
+            }
 
-    response.status_code = 204;
-    try response.headers.put("Server", "My cool server");
-    // try response.headers.put("Date", "Wed, 26 Jun 2024 12:00:00 GMT");
-    try response.headers.put("Content-Type", "text/html; charset=UTF-8");
-    try response.headers.put("Content-Length", "0");
-    try response.headers.put("Location", "http://localhost:3001/test");
+            const client_reader = self.client_connection.stream.reader();
 
-    try response.write(client_writer);
-}
+            var request = http_request.HttpRequest.init();
 
-fn sigintHandler(_: c_int) callconv(.C) void {
-    client.stream.close();
-    server.deinit();
-    print("Sign handler\n", .{});
-    process.exit(1);
-}
+            try http_request.ReadRequest(allocator, &request, client_reader);
+            const request_obj: *const http_request.HttpRequest = &request;
+
+            const client_writer = self.client_connection.stream.writer();
+            var response = http_response.HttpResponse.init(allocator);
+            defer response.deinit();
+
+            response.status_code = 204;
+
+            if (self.on_request) |handler| {
+                try handler(&response, request_obj);
+            }
+
+            try response.headers.put("Server", "My cool server");
+            // try response.headers.put("Date", "Wed, 26 Jun 2024 12:00:00 GMT");
+            // try response.headers.put("Content-Type", "text/html; charset=UTF-8");
+            try response.headers.put("Content-Length", "0");
+            // try response.headers.put("Location", "http://localhost:3001/test");
+
+            try response.write(client_writer);
+        }
+
+        if (self.on_stop_listening) |callback| {
+            callback();
+        }
+    }
+};

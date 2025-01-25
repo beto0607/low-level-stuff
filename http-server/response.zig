@@ -23,6 +23,9 @@ pub const HttpResponse = struct {
             .allocator = allocator,
         };
     }
+    pub fn deinit(self: *Self) void {
+        self.headers.deinit();
+    }
 
     pub fn write(self: *HttpResponse, writer: net.Stream.Writer) !void {
         try self.writeStartLine(writer);
