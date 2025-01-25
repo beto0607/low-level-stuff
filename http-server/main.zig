@@ -11,9 +11,6 @@ const assert = std.debug.assert;
 const host = .{ 127, 0, 0, 1 };
 const port: u16 = 3001;
 
-var client: net.Server.Connection = undefined;
-var server: net.Server = undefined;
-
 var http_server_instance: http_server.HttpServer = undefined;
 
 pub fn main() !void {
