@@ -31,7 +31,11 @@ pub const HttpResponse = struct {
         try self.writeStartLine(writer);
         try self.writeHeaders(writer);
         _ = try writer.writeAll("\n");
-        _ = try writer.writeAll(self.body);
+
+        if (self.body.len > 0) {
+            _ = try writer.writeAll(self.body);
+            _ = try writer.writeAll("\n");
+        }
     }
 
     fn writeHeaders(self: *HttpResponse, writer: net.Stream.Writer) !void {
