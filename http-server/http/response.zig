@@ -14,18 +14,16 @@ pub const HttpResponse = struct {
 
     const Self = @This();
 
-    pub fn init(gpa: mem.Allocator) Self {
+    pub fn init(allocator: mem.Allocator) Self {
         return .{
             .http_version = "HTTP/1.1",
             .status_code = 200,
-            .headers = std.StringHashMap([]const u8).init(gpa),
+            .headers = std.StringHashMap([]const u8).init(allocator),
             .body = &[_]u8{},
-            .allocator = gpa,
+            .allocator = allocator,
         };
     }
-
-    pub fn free(self: *HttpResponse, gpa: mem.Allocator) void {
-        gpa.free(self.body);
+    pub fn deinit(self: *Self) void {
         self.headers.deinit();
     }
 
