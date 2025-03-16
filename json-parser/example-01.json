@@ -1,0 +1,42 @@
+{
+    "scalars": {
+        "null": null,
+        "number": 1234,
+        "string": "this is a text",
+        "boolean_true": true,
+        "boolean_false": false
+    },
+    "arrays": {
+        "array_empty": [],
+        "array_numbers": [
+            1,
+            2,
+            3,
+            4,
+            5
+        ],
+        "array_booleans": [
+            true,
+            false,
+            true,
+            false,
+            false
+        ],
+        "array_strings": [
+            "one",
+            "two",
+            "emoji?",
+            "😃"
+        ],
+        "array_objects": [
+            {
+                "a": "b"
+            },
+            {
+                "1": "2"
+            }
+        ]
+    },
+    "object_empty": {}
+				
+}
