@@ -1,0 +1,11 @@
+{
+    "scalars": {
+        "Null": null,
+        "number": 1234,
+        "numberNeg": -1234,
+        "string": "this is a text",
+        "boolean_true": true,
+        "boolean_false": false,
+        "array": []
+    }
+}
