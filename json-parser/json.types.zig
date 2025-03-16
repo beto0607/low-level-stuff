@@ -20,7 +20,7 @@ pub const JSONParsingError = mem.Allocator.Error || error{
     SyntaxErorr,
     InvalidArrayValue,
     InvalidBooleanValue,
-    InvalidMapValue,
+    InvalidObjectValue,
     InvalidNullValue,
     InvalidNumberValue,
     InvalidStringValue,

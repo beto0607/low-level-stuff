@@ -16,7 +16,7 @@ pub fn parseObject(allocator: mem.Allocator, slice: []const u8, index: *u64) JSO
     if (slice[index.*] == '{') {
         index.* += 1;
     } else {
-        return JSONParsingError.InvalidMapValue;
+        return JSONParsingError.InvalidObjectValue;
     }
 
     var isParsingKey = false;
@@ -28,13 +28,13 @@ pub fn parseObject(allocator: mem.Allocator, slice: []const u8, index: *u64) JSO
         switch (byte) {
             '}' => {
                 if (isParsingKey) {
-                    return JSONParsingError.InvalidMapValue;
+                    return JSONParsingError.InvalidObjectValue;
                 }
                 break;
             },
             ',' => {
                 if (isParsingKey) {
-                    return JSONParsingError.InvalidMapValue;
+                    return JSONParsingError.InvalidObjectValue;
                 }
                 index.* += 1;
                 continue;
@@ -57,7 +57,7 @@ pub fn parseObject(allocator: mem.Allocator, slice: []const u8, index: *u64) JSO
             },
             else => {
                 if (!isParsingKey) {
-                    return JSONParsingError.InvalidMapValue;
+                    return JSONParsingError.InvalidObjectValue;
                 }
 
                 value = try parseSliceRecursively(allocator, slice, index);
