@@ -3,8 +3,8 @@ const mem = std.mem;
 const testing = std.testing;
 
 const jsonTypes = @import("./json.types.zig");
-const JSONType = jsonTypes.JSONType;
 const JSONParsingError = jsonTypes.JSONParsingError;
+const JSONType = jsonTypes.JSONType;
 
 // https://datatracker.ietf.org/doc/html/rfc8259#section-7
 // TODO: accept more scaped characters (U+0000 - U+001F)

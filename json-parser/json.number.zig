@@ -3,11 +3,12 @@ const mem = std.mem;
 const testing = std.testing;
 
 const jsonTypes = @import("./json.types.zig");
-const isWhiteSpace = @import("./json.whitespace.zig").isWhiteSpace;
-const JSONType = jsonTypes.JSONType;
 const JSONParsingError = jsonTypes.JSONParsingError;
+const JSONType = jsonTypes.JSONType;
 
-pub fn parseNumber(slice: []const u8, index: *u64) !JSONType {
+const isWhiteSpace = @import("./json.whitespace.zig").isWhiteSpace;
+
+pub fn parseNumber(slice: []const u8, index: *u64) JSONParsingError!JSONType {
     var isNegative = false;
     var isNegativeExponent = false;
     var isFloat = false;

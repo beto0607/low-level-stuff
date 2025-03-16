@@ -2,12 +2,13 @@ const std = @import("std");
 const mem = std.mem;
 const testing = std.testing;
 
-const parseSliceRecursively = @import("./json.zig").parseSliceRecursively;
 const jsonTypes = @import("./json.types.zig");
-const isWhiteSpace = @import("./json.whitespace.zig").isWhiteSpace;
-const parseWhiteSpaces = @import("./json.whitespace.zig").parseWhiteSpaces;
-const JSONType = jsonTypes.JSONType;
 const JSONParsingError = jsonTypes.JSONParsingError;
+const JSONType = jsonTypes.JSONType;
+
+const isWhiteSpace = @import("./json.whitespace.zig").isWhiteSpace;
+const parseSliceRecursively = @import("./json.zig").parseSliceRecursively;
+const parseWhiteSpaces = @import("./json.whitespace.zig").parseWhiteSpaces;
 
 pub fn parseArray(allocator: mem.Allocator, slice: []const u8, index: *u64) JSONParsingError!JSONType {
     var list = std.ArrayList(JSONType).init(allocator);

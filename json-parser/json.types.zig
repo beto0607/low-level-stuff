@@ -11,7 +11,7 @@ pub const JSONType = union {
     float: f64,
     string: []const u8,
     boolean: bool,
-    map: std.StringHashMap(JSONType),
+    object: std.StringHashMap(JSONType),
     array: []JSONType,
     null: ?u1,
 };

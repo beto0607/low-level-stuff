@@ -3,8 +3,8 @@ const mem = std.mem;
 const testing = std.testing;
 
 const jsonTypes = @import("./json.types.zig");
-const JSONType = jsonTypes.JSONType;
 const JSONParsingError = jsonTypes.JSONParsingError;
+const JSONType = jsonTypes.JSONType;
 
 pub fn parseNull(slice: []const u8, index: *u64) JSONParsingError!JSONType {
     if (slice.len < index.* + 3) {
