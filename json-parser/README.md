@@ -1,6 +1,6 @@
 # JSON parser
 
-[RFC](https://datatracker.ietf.org/doc/html/rfc8259#section-7)
+[RFC 8259](https://datatracker.ietf.org/doc/html/rfc8259#section-7)
 
 ## Considerations
 

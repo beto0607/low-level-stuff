@@ -17,7 +17,7 @@ pub const JSONType = union {
 };
 
 pub const JSONParsingError = mem.Allocator.Error || error{
-    SyntaxErorr,
+    SyntaxError,
     InvalidArrayValue,
     InvalidBooleanValue,
     InvalidObjectValue,
